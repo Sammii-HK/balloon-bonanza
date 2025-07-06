@@ -4,19 +4,22 @@ import { useEffect, useRef } from "react";
 import Matter from "matter-js";
 
 const BalloonPop = () => {
-  const sceneRef = useRef(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
   const poppedBalloons = useRef(new Set());
-  const engineRef = useRef(null);
+  const engineRef = useRef<Matter.Engine | null>(null);
 
   useEffect(() => {
-    const { Engine, Render, Runner, Bodies, World, Events, Body, Mouse, MouseConstraint, Vector, Constraint } = Matter;
+    const { Engine, Render, Runner, Bodies, World, Constraint, Mouse, MouseConstraint } = Matter;
+    const poppedBalloonsSet = poppedBalloons.current;
     
     // Initialize Matter.js engine only once
     if (!engineRef.current) {
-      engineRef.current = Engine.create();
-      engineRef.current.world.gravity.y = 0.11; // Minor gravity increase for slight bounce reduction
+      const engine = Engine.create();
+      engine.world.gravity.y = 0.11; // Minor gravity increase for slight bounce reduction
+      engineRef.current = engine;
     }
     const engine = engineRef.current;
+    if (!engine || !sceneRef.current) return;
     const { world } = engine;
 
     const render = Render.create({
@@ -118,7 +121,7 @@ const BalloonPop = () => {
     ];
     
     
-    const createBalloon = (x, y, index) => {
+    const createBalloon = (x: number, y: number) => {
       // if (availableColors.length === 0) return;
       const color = availableColors[Math.floor(Math.random() * availableColors.length)];
 
@@ -138,7 +141,6 @@ const BalloonPop = () => {
         restitution: 0.95, // Ensuring bounce effect
         friction: 0.02, // Reduce friction to improve bounce
         density: 0.02 + Math.random() * 0.01,
-        restitution: 0.95,
         frictionAir: 0.014,
         angle: Math.PI + 0.523,
         render: { fillStyle: color },
@@ -185,7 +187,7 @@ const BalloonPop = () => {
     };
 
     for (let i = 0; i < 100; i++) {
-      createBalloon(Math.random() * window.innerWidth, Math.random() * window.innerHeight / 2, i);
+      createBalloon(Math.random() * window.innerWidth, Math.random() * window.innerHeight / 2);
     }
 
     // Add mouse interaction
@@ -194,7 +196,7 @@ const BalloonPop = () => {
       mouse: mouse,
       constraint: {
         stiffness: 0.05, // Further reduced stiffness to limit throwing force
-        render: { visible: false, opacity: 0 },
+        render: { visible: false },
       },
     });
     World.add(world, mouseConstraint);
@@ -202,11 +204,11 @@ const BalloonPop = () => {
     return () => {
       World.remove(world, mouseConstraint);
       Render.stop(render);
-      World.clear(world);
+      World.clear(world, false);
       Engine.clear(engine);
       Runner.stop(runner);
       render.canvas.remove();
-      poppedBalloons.current.clear();
+      poppedBalloonsSet.clear();
     };
   }, []);
 
