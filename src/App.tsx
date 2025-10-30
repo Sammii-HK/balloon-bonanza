@@ -217,8 +217,19 @@ const BalloonPop = () => {
 
   // Update background when theme changes without recreating the simulation
   useEffect(() => {
-    if (renderRef.current) {
-      renderRef.current.options.background = isDarkMode ? "#1a1a2e" : "#e0f7fa";
+    if (renderRef.current && renderRef.current.canvas) {
+      const bgColor = isDarkMode ? "#1a1a2e" : "#e0f7fa";
+      renderRef.current.options.background = bgColor;
+      
+      // Set canvas style as fallback
+      renderRef.current.canvas.style.backgroundColor = bgColor;
+      
+      // Manually clear and fill canvas with new background color for immediate update
+      const ctx = renderRef.current.canvas.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, renderRef.current.canvas.width, renderRef.current.canvas.height);
+      }
     }
   }, [isDarkMode]);
 
@@ -226,9 +237,24 @@ const BalloonPop = () => {
     setIsDarkMode(prev => !prev);
   };
 
+  const bgColor = isDarkMode ? "#1a1a2e" : "#e0f7fa";
+  
   return (
-    <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
-      <div ref={sceneRef} style={{ width: "100vw", height: "100vh" }} />
+    <div 
+      style={{ 
+        width: "100vw", 
+        height: "100vh", 
+        position: "relative",
+        backgroundColor: bgColor
+      }}
+    >
+      <div 
+        ref={sceneRef} 
+        style={{ 
+          width: "100vw", 
+          height: "100vh"
+        }} 
+      />
       <button
         onClick={toggleTheme}
         style={{
