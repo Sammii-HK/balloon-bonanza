@@ -1,8 +1,23 @@
 {
   "name": "balloon-bonanza",
-  "private": true,
-  "version": "0.0.0",
+  "description": "A real-time physics simulation using Matter.js to render interactive balloons with realistic collision dynamics",
+  "version": "1.0.0",
   "type": "module",
+  "author": "",
+  "license": "MIT",
+  "keywords": [
+    "physics",
+    "simulation",
+    "matter-js",
+    "react",
+    "typescript",
+    "balloons",
+    "collision-detection"
+  ],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

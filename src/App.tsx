@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 
 const BalloonPop = () => {
   const sceneRef = useRef<HTMLDivElement>(null);
   const poppedBalloons = useRef(new Set());
   const engineRef = useRef<Matter.Engine | null>(null);
+  const renderRef = useRef<Matter.Render | null>(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     const { Engine, Render, Runner, Bodies, World, Constraint, Mouse, MouseConstraint } = Matter;
@@ -29,9 +31,10 @@ const BalloonPop = () => {
         width: window.innerWidth,
         height: window.innerHeight,
         wireframes: false,
-        background: "#e0f7fa",
+        background: isDarkMode ? "#1a1a2e" : "#e0f7fa",
       },
     });
+    renderRef.current = render;
 
     Render.run(render);
     const runner = Runner.create();
@@ -212,7 +215,43 @@ const BalloonPop = () => {
     };
   }, []);
 
-  return <div ref={sceneRef} style={{ width: "100vw", height: "100vh" }} />;
+  // Update background when theme changes without recreating the simulation
+  useEffect(() => {
+    if (renderRef.current) {
+      renderRef.current.options.background = isDarkMode ? "#1a1a2e" : "#e0f7fa";
+    }
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(prev => !prev);
+  };
+
+  return (
+    <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
+      <div ref={sceneRef} style={{ width: "100vw", height: "100vh" }} />
+      <button
+        onClick={toggleTheme}
+        style={{
+          position: "absolute",
+          top: "20px",
+          right: "20px",
+          zIndex: 1000,
+          padding: "10px 20px",
+          borderRadius: "8px",
+          border: "1px solid",
+          backgroundColor: isDarkMode ? "#2a2a3e" : "#ffffff",
+          color: isDarkMode ? "#ffffff" : "#000000",
+          borderColor: isDarkMode ? "#ffffff" : "#000000",
+          cursor: "pointer",
+          fontSize: "14px",
+          fontWeight: "500",
+          transition: "all 0.3s ease",
+        }}
+      >
+        {isDarkMode ? "☀️ Light" : "🌙 Dark"}
+      </button>
+    </div>
+  );
 };
 
 export default BalloonPop;
