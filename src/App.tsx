@@ -3,12 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import Matter from "matter-js";
 
+// Detect system color scheme preference
+const getSystemPreference = (): boolean => {
+  if (typeof window !== "undefined" && window.matchMedia) {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  return false;
+};
+
 const BalloonPop = () => {
   const sceneRef = useRef<HTMLDivElement>(null);
   const poppedBalloons = useRef(new Set());
   const engineRef = useRef<Matter.Engine | null>(null);
   const renderRef = useRef<Matter.Render | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(getSystemPreference);
 
   useEffect(() => {
     const { Engine, Render, Runner, Bodies, World, Constraint, Mouse, MouseConstraint } = Matter;
@@ -213,6 +221,27 @@ const BalloonPop = () => {
       render.canvas.remove();
       poppedBalloonsSet.clear();
     };
+  }, []);
+
+  // Listen for system preference changes
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.matchMedia) {
+      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+      const handleChange = (e: MediaQueryListEvent) => {
+        setIsDarkMode(e.matches);
+      };
+
+      // Modern browsers
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener("change", handleChange);
+        return () => mediaQuery.removeEventListener("change", handleChange);
+      } 
+      // Legacy browsers
+      else if (mediaQuery.addListener) {
+        mediaQuery.addListener(handleChange);
+        return () => mediaQuery.removeListener(handleChange);
+      }
+    }
   }, []);
 
   // Update background when theme changes without recreating the simulation
