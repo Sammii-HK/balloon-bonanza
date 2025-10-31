@@ -2,6 +2,8 @@
 
 A real-time physics simulation using Matter.js to render interactive balloons with realistic collision dynamics and constraint-based interactions.
 
+<img width="1708" height="980" alt="Screenshot 2025-10-31 at 13 30 49" src="https://github.com/user-attachments/assets/5d75853a-03c5-4897-960c-75025e4f3e49" />
+
 ## Technical Implementation
 
 ### Physics Engine Architecture
