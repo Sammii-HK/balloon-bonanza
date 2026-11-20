@@ -1,6 +1,6 @@
 {
   "name": "balloon-bonanza",
-  "description": "A real-time physics simulation using Matter.js to render interactive balloons with realistic collision dynamics",
+  "description": "A colourful rigid-body playground with two-body balloons and adjustable interaction controls",
   "version": "1.0.0",
   "type": "module",
   "author": "",
@@ -20,11 +20,15 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "npm run lint:icons && tsc -b && vite build",
+    "lint": "npm run lint:icons && eslint .",
+    "preview": "vite preview",
+    "lint:icons": "node scripts/lint-icons.mjs",
+    "test:icons": "node --test scripts/icons.test.mjs",
+    "test": "npm run test:icons && node --test tests/*.test.ts"
   },
   "dependencies": {
+    "lucide-react": "^0.577.0",
     "matter-js": "^0.20.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -40,7 +44,7 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^15.15.0",
     "typescript": "~5.7.2",
-    "typescript-eslint": "^8.24.1",
+    "typescript-eslint": "^8.73.0",
     "vite": "^6.2.0"
   }
 }

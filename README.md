@@ -1,29 +1,34 @@
 # Balloon Bonanza
 
-A real-time physics simulation featuring interactive balloons with realistic collision dynamics.
+A colourful Matter.js playground. Grab and fling balloons, choose how many are in the room, pause to look closer, or play using the keyboard.
 
-<img width="1708" height="980" alt="Screenshot 2025-10-31 at 13 30 49" src="https://github.com/user-attachments/assets/5d75853a-03c5-4897-960c-75025e4f3e49" />
+## The actual model
 
-## Features
+Each balloon is a circle and a triangular knot joined by three constraints: one pin and two softer connections. The original bright palette, density range, restitution, air resistance, rotation/initial force and small positive gravity are retained. This is tuned rigid-body motion, not a buoyancy or gas simulation.
 
-- **Real-time Physics Simulation** - 100 balloons with independent physics properties
-- **Interactive Controls** - Drag and interact with balloons using mouse controls
-- **Constraint-Based Balloons** - Each balloon consists of a body and knot connected via spring constraints
-- **Light/Dark Mode** - Automatically detects system preferences with manual override
-- **Optimized Performance** - Maintains 60 FPS with 200+ rigid bodies and 300+ constraints
+The initial 100-balloon world contains 200 dynamic bodies, three boundary bodies and 300 balloon constraints, plus the mouse constraint while the interactive scene is mounted. Counts of 25 and 50 give the same two-body construction more space. The room has a floor and side boundaries, with open space above. A keyboard lift applies an upward force rather than teleporting a balloon.
 
-## Technical Highlights
+## Controls
 
-The simulation uses Matter.js's constraint-based physics engine to create realistic balloon behavior. Each balloon is composed of two connected rigid bodies (a circular balloon and triangular knot) linked by spring-damper constraints. This creates natural movement where the knot oscillates and responds to collisions while maintaining structural integrity.
+- Drag a balloon with a pointer or touch. The surrounding page remains scrollable.
+- Pause/Play controls both the physics runner and rendering loop. Hidden tabs stop both loops. Reduced-motion preference starts paused, with explicit Play available.
+- Focus the playground: Left/Right select a balloon, Up gives it a lift, and Space pauses or resumes. The same actions have labelled buttons.
+- One step advances a single physics frame while paused. A paused lift also advances one frame so its effect can be examined.
+- Start again or choose a count to create a new scene. Resize changes the canvas and boundaries while translating each body's knot with it.
+- Light and night skies update the existing renderer. System colour preference is followed until you make a manual choice.
 
-Collision detection handles interactions between 100+ circular and polygonal bodies simultaneously, with tuned physics parameters for realistic balloon behavior including high restitution (bounciness), varied densities, and air friction effects.
+The selected balloon has a dashed ring. Canvas artwork is decorative to assistive technology; labelled controls and selection output provide the keyboard alternative. Physical touch, browser and assistive-technology coverage are separate from the local responsive review.
 
-The implementation uses React hooks to manage the physics engine lifecycle, ensuring proper cleanup and preventing memory leaks. The canvas background dynamically updates based on theme preference, and the simulation seamlessly adapts to window resizing.
+## Local development
 
-## Technology Stack
+```sh
+npm install
+npm run dev
+npm run lint
+npm test
+npm run build
+```
 
-- **React 19** - Component framework with Hooks API for lifecycle management
-- **TypeScript 5.7** - Type-safe implementation with proper Matter.js type definitions
-- **Matter.js 0.20.0** - 2D physics engine for rigid body dynamics and collision detection
-- **Vite 6.2** - Build tool and development server with HMR
-- **ESLint 9** - Code quality and linting
+The existing Yarn lock records the compatible dependency updates. The build is a local static Vite site; there are no provider, account, database or generation calls. Normal lint/build include the canonical Lucide source check, and normal tests include its eleven regressions plus meaningful physics cases. All interface icons are named Lucide components; the balloon shapes remain canvas artwork.
+
+Scene cleanup stops both loops, disconnects resizing and visibility/media listeners, removes canvas mouse/touch handlers and clears Matter resources. Rendering uses a capped device-pixel ratio. These implementation boundaries are not a measured frame-rate or universal no-leak claim. No fixed FPS or broad device compatibility claim is made.

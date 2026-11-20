@@ -1,312 +1,67 @@
-'use client'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { Circle, ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, Moon, Pause, Play, RotateCcw, StepForward, Sun } from 'lucide-react';
+import { createScene, type BalloonScene } from './scene';
+import './App.css';
 
-import { useEffect, useRef, useState } from "react";
-import Matter from "matter-js";
+const preference = (query: string) => typeof window !== 'undefined' && Boolean(window.matchMedia?.(query).matches);
 
-// Detect system color scheme preference
-const getSystemPreference = (): boolean => {
-  if (typeof window !== "undefined" && window.matchMedia) {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+export default function BalloonBonanza() {
+  const sceneElement = useRef<HTMLDivElement>(null);
+  const scene = useRef<BalloonScene | null>(null);
+  const [dark, setDark] = useState(() => preference('(prefers-color-scheme: dark)'));
+  const [paused, setPaused] = useState(() => preference('(prefers-reduced-motion: reduce)'));
+  const [visible, setVisible] = useState(() => !document.hidden);
+  const [count, setCount] = useState(100);
+  const [generation, setGeneration] = useState(0);
+  const [selected, setSelected] = useState(0);
+  const manualTheme = useRef(false);
+  const preferences = useRef({ dark, paused });
+  useEffect(() => { preferences.current = { dark, paused }; }, [dark, paused]);
+
+  useEffect(() => {
+    if (!sceneElement.current) return;
+    const instance = createScene(sceneElement.current, count, setSelected);
+    scene.current = instance;
+    instance.theme(preferences.current.dark);
+    instance.setRunning(!preferences.current.paused && !document.hidden);
+    setSelected(0);
+    const visibility = () => { setVisible(!document.hidden); instance.setRunning(!preferences.current.paused && !document.hidden); };
+    document.addEventListener('visibilitychange', visibility);
+    return () => { document.removeEventListener('visibilitychange', visibility); instance.dispose(); scene.current = null; };
+  }, [count, generation]);
+  useEffect(() => { scene.current?.theme(dark); }, [dark]);
+  useEffect(() => { scene.current?.setRunning(!paused && !document.hidden); }, [paused]);
+  useEffect(() => {
+    const color = window.matchMedia('(prefers-color-scheme: dark)');
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const onColor = (event: MediaQueryListEvent) => { if (!manualTheme.current) setDark(event.matches); };
+    const onMotion = (event: MediaQueryListEvent) => { if (event.matches) setPaused(true); };
+    color.addEventListener('change', onColor);
+    motion.addEventListener('change', onMotion);
+    return () => { color.removeEventListener('change', onColor); motion.removeEventListener('change', onMotion); };
+  }, []);
+
+  function keyboard(event: KeyboardEvent<HTMLDivElement>) {
+    if (!['ArrowLeft','ArrowRight','ArrowUp',' '].includes(event.key)) return;
+    event.preventDefault();
+    if (event.key === 'ArrowLeft') scene.current?.select(selected - 1);
+    if (event.key === 'ArrowRight') scene.current?.select(selected + 1);
+    if (event.key === 'ArrowUp') scene.current?.lift();
+    if (event.key === ' ') setPaused(value => !value);
   }
-  return false;
-};
-
-const BalloonPop = () => {
-  const sceneRef = useRef<HTMLDivElement>(null);
-  const poppedBalloons = useRef(new Set());
-  const engineRef = useRef<Matter.Engine | null>(null);
-  const renderRef = useRef<Matter.Render | null>(null);
-  const [isDarkMode, setIsDarkMode] = useState(getSystemPreference);
-
-  useEffect(() => {
-    const { Engine, Render, Runner, Bodies, World, Constraint, Mouse, MouseConstraint } = Matter;
-    const poppedBalloonsSet = poppedBalloons.current;
-    
-    // Initialize Matter.js engine only once
-    if (!engineRef.current) {
-      const engine = Engine.create();
-      engine.world.gravity.y = 0.11; // Minor gravity increase for slight bounce reduction
-      engineRef.current = engine;
-    }
-    const engine = engineRef.current;
-    if (!engine || !sceneRef.current) return;
-    const { world } = engine;
-
-    const render = Render.create({
-      element: sceneRef.current,
-      engine: engine,
-      options: {
-        width: window.innerWidth,
-        height: window.innerHeight,
-        wireframes: false,
-        background: isDarkMode ? "#1a1a2e" : "#e0f7fa",
-      },
-    });
-    renderRef.current = render;
-
-    Render.run(render);
-    const runner = Runner.create();
-    Runner.run(runner, engine);
-
-    // Create walls to contain balloons
-    const walls = [
-      Bodies.rectangle(window.innerWidth / 2, window.innerHeight, window.innerWidth, 20, {
-        isStatic: true,
-        friction: 0.05, // Slightly increased friction to reduce sliding
-        frictionStatic: 0.25,
-        restitution: 0.95, // Very small reduction in bounce
-      }), // Ground
-      Bodies.rectangle(-10, window.innerHeight / 2, 20, window.innerHeight * 2, { isStatic: true }), // Left wall
-      Bodies.rectangle(window.innerWidth + 10, window.innerHeight / 2, 20, window.innerHeight * 2, { isStatic: true }), // Right wall
-    ];
-    World.add(world, walls);
-
-    const balloons = [];
-    // const availableColors = ["magenta", "blue", "purple", "pink", "turquoise", "deeppink", "hotpink", "orchid", "paleturquoise", "plum", "thistle", "mediumturquoise"];
-    // const availableColors = [
-    //   "#FFC0CB", // Pink
-    //   "#FFB6C1", // Light Pink
-    //   "#FFD1DC", // Cotton Candy
-    //   "#FF9AA2", // Soft Coral
-    //   "#FFDAC1", // Peach
-    //   "#FFF4E0", // Cream
-    //   "#FFDDC1", // Pastel Orange
-    //   "#FFFFE0", // Light Yellow
-    //   "#E6E6FA", // Lavender
-    //   "#D8BFD8", // Thistle
-    //   "#B39EB5", // Mauve
-    //   "#A7C7E7", // Baby Blue
-    //   "#B5EAD7", // Mint Green
-    //   "#C7CEEA", // Periwinkle
-    //   "#D4A5A5", // Dusty Rose
-    //   "#F4C2C2", // Bubblegum
-    //   "#E0BBE4", // Lilac
-    //   "#FFABAB", // Blush
-    //   "#F7CAC9", // Rose Quartz
-    //   "#FFCBDB", // Pastel Pink
-    // ];
-    // const availableColors = [
-    //   "pink",
-    //   "lightpink",
-    //   "hotpink",
-    //   "deeppink",
-    //   "mistyrose",
-    //   "peachpuff",
-    //   "lavenderblush",
-    //   "papayawhip",
-    //   "moccasin",
-    //   "lemonchiffon",
-    //   "lightgoldenrodyellow",
-    //   "palegoldenrod",
-    //   "lavender",
-    //   "thistle",
-    //   "plum",
-    //   "violet",
-    //   "lightblue",
-    //   "powderblue",
-    //   "honeydew",
-    //   "mintcream"
-    // ];
-
-    const availableColors = [
-      "deepskyblue",  
-      "dodgerblue",  
-      "mediumspringgreen",  
-      "limegreen",  
-      "chartreuse",  
-      "gold",  
-      "orange",  
-      "orangered",  
-      "tomato",  
-      "red",  
-      "deeppink",  
-      "hotpink",  
-      "mediumvioletred",  
-      "blueviolet",  
-      "mediumpurple",  
-      "cyan",  
-      "aquamarine",  
-      "yellow",  
-      "springgreen",  
-      "magenta"
-    ];
-    
-    
-    const createBalloon = (x: number, y: number) => {
-      // if (availableColors.length === 0) return;
-      const color = availableColors[Math.floor(Math.random() * availableColors.length)];
-
-      // Balloon body (circle)
-      const balloonBody = Bodies.circle(x, y, 30, {
-        density: 0.02 + Math.random() * 0.01, // Slight density tweak for balance
-        restitution: 0.95, // Very small reduction in bounce
-        frictionAir: 0.01, // Fine-tuned air friction to slightly slow movement
-        friction: 0.12, // Minor friction increase to limit sliding
-        torque: 30 * (Math.random() - 0.5),
-        force: {x: 3 * (Math.random() - 0.5), y: 0},
-        render: { fillStyle: color, visible: true },
-      });
-
-      // Knot (triangle) with top corner trimmed and slightly overlapped
-      const knot = Bodies.polygon(x, y + 33, 3, 5, {
-        restitution: 0.95, // Ensuring bounce effect
-        friction: 0.02, // Reduce friction to improve bounce
-        density: 0.02 + Math.random() * 0.01,
-        frictionAir: 0.014,
-        angle: Math.PI + 0.523,
-        render: { fillStyle: color },
-      });
-
-      const pinConstraint = Constraint.create({
-        bodyA: balloonBody,
-        bodyB: knot,
-        render: { visible: false },
-        pointA: { x: 0, y: 33 },
-        pointB: { x: 0, y: -4 },
-        length: 0,
-        stiffness: 0.1, // Increased stiffness for better hinge behavior
-      });
-
-      // keeps the knot straight
-      const leftSpring = Constraint.create({
-        bodyA: balloonBody,
-        bodyB: knot,
-        render: { visible: false },
-        pointA: { x: -10, y: 33 },
-        pointB: { x: -10, y: -14 },
-        length: 10, // Slight negative length to create an overlapping effect
-        stiffness: 0.01, // Increased stiffness for better hinge behavior
-      });
-
-      const rightSpring = Constraint.create({
-        bodyA: balloonBody,
-        bodyB: knot,
-        render: { visible: false },
-        pointA: { x: 10, y: 33 },
-        pointB: { x: 10, y: -14 },
-        length: 10, 
-        stiffness: 0.01,
-      });
-
-      World.add(world, balloonBody);
-      World.add(world, knot);
-      World.add(world, pinConstraint);
-      World.add(world, leftSpring);
-      World.add(world, rightSpring);
-
-      balloons.push(balloonBody);
-    };
-
-    for (let i = 0; i < 100; i++) {
-      createBalloon(Math.random() * window.innerWidth, Math.random() * window.innerHeight / 2);
-    }
-
-    // Add mouse interaction
-    const mouse = Mouse.create(render.canvas);
-    const mouseConstraint = MouseConstraint.create(engine, {
-      mouse: mouse,
-      constraint: {
-        stiffness: 0.05, // Further reduced stiffness to limit throwing force
-        render: { visible: false },
-      },
-    });
-    World.add(world, mouseConstraint);
-
-    return () => {
-      World.remove(world, mouseConstraint);
-      Render.stop(render);
-      World.clear(world, false);
-      Engine.clear(engine);
-      Runner.stop(runner);
-      render.canvas.remove();
-      poppedBalloonsSet.clear();
-    };
-  }, []);
-
-  // Listen for system preference changes
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.matchMedia) {
-      const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-      const handleChange = (e: MediaQueryListEvent) => {
-        setIsDarkMode(e.matches);
-      };
-
-      // Modern browsers
-      if (mediaQuery.addEventListener) {
-        mediaQuery.addEventListener("change", handleChange);
-        return () => mediaQuery.removeEventListener("change", handleChange);
-      } 
-      // Legacy browsers
-      else if (mediaQuery.addListener) {
-        mediaQuery.addListener(handleChange);
-        return () => mediaQuery.removeListener(handleChange);
-      }
-    }
-  }, []);
-
-  // Update background when theme changes without recreating the simulation
-  useEffect(() => {
-    if (renderRef.current && renderRef.current.canvas) {
-      const bgColor = isDarkMode ? "#1a1a2e" : "#e0f7fa";
-      renderRef.current.options.background = bgColor;
-      
-      // Set canvas style as fallback
-      renderRef.current.canvas.style.backgroundColor = bgColor;
-      
-      // Manually clear and fill canvas with new background color for immediate update
-      const ctx = renderRef.current.canvas.getContext("2d");
-      if (ctx) {
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, renderRef.current.canvas.width, renderRef.current.canvas.height);
-      }
-    }
-  }, [isDarkMode]);
-
-  const toggleTheme = () => {
-    setIsDarkMode(prev => !prev);
-  };
-
-  const bgColor = isDarkMode ? "#1a1a2e" : "#e0f7fa";
-  
-  return (
-    <div 
-      style={{ 
-        width: "100vw", 
-        height: "100vh", 
-        position: "relative",
-        backgroundColor: bgColor
-      }}
-    >
-      <div 
-        ref={sceneRef} 
-        style={{ 
-          width: "100vw", 
-          height: "100vh"
-        }} 
-      />
-      <button
-        onClick={toggleTheme}
-        style={{
-          position: "absolute",
-          top: "20px",
-          right: "20px",
-          zIndex: 1000,
-          padding: "10px 20px",
-          borderRadius: "8px",
-          border: "1px solid",
-          backgroundColor: isDarkMode ? "#2a2a3e" : "#ffffff",
-          color: isDarkMode ? "#ffffff" : "#000000",
-          borderColor: isDarkMode ? "#ffffff" : "#000000",
-          cursor: "pointer",
-          fontSize: "14px",
-          fontWeight: "500",
-          transition: "all 0.3s ease",
-        }}
-      >
-        {isDarkMode ? "☀️ Light" : "🌙 Dark"}
-      </button>
+  const running = !paused && visible;
+  return <div className="balloon-app" data-theme={dark ? 'dark' : 'light'}>
+    <div className="page-shell">
+      <header><a className="wordmark" href="./">balloon<br/><span>bonanza.</span></a><a className="story-link" href="https://sammii.dev/projects/balloon-bonanza/">Behind the bounce<ArrowUpRight size={16} aria-hidden="true" /></a></header>
+      <main>
+        <section className="intro" aria-labelledby="title"><div><p className="eyebrow">A COLOURFUL COLLISION STUDY</p><h1 id="title">Balloons,<br/><em>with a bounce.</em></h1></div><div className="intro-copy"><p>Grab, fling, and see where they go. A little playground made of circles, knots and spring constraints.</p><span>Low gravity. Bright colours. Plenty of room to play.</span></div></section>
+        <section className="playground" aria-labelledby="playground-title">
+          <div className="toolbar"><div><h2 id="playground-title">Room to play</h2><span className="status" role="status"><Circle className={running ? 'status-dot live' : 'status-dot'} size={6} fill="currentColor" aria-hidden="true"/>{running ? 'In motion' : paused ? 'Paused' : 'Paused while this tab is hidden'}</span></div><div className="primary-controls"><button onClick={() => setPaused(value => !value)}>{paused ? <Play size={16} aria-hidden="true"/> : <Pause size={16} aria-hidden="true"/>}{paused ? 'Play' : 'Pause'}</button><button onClick={() => setGeneration(value => value + 1)}><RotateCcw size={16} aria-hidden="true"/>Start again</button><button onClick={() => { manualTheme.current = true; setDark(value => !value); }}>{dark ? <Sun size={16} aria-hidden="true"/> : <Moon size={16} aria-hidden="true"/>}{dark ? 'Light sky' : 'Night sky'}</button></div></div>
+          <div ref={sceneElement} className="scene" tabIndex={0} role="group" aria-label="Balloon physics playground" aria-describedby="keyboard-help" onKeyDown={keyboard}/>
+          <div className="scene-footer"><p>Drag a balloon to give it a new direction.</p><label htmlFor="balloon-count">Make room for<select id="balloon-count" value={count} onChange={event => setCount(Number(event.target.value))}><option value="25">25 balloons</option><option value="50">50 balloons</option><option value="100">100 balloons</option></select></label></div>
+        </section>
+        <section className="details"><div className="keyboard-tools"><p className="eyebrow">ANOTHER WAY TO PLAY</p><h2>No dragging needed.</h2><p id="keyboard-help">Focus the playground. Left and right choose a balloon, up gives it a lift, and Space pauses. Or use these buttons.</p><div className="selection"><button aria-label="Previous balloon" onClick={() => scene.current?.select(selected - 1)}><ArrowLeft size={18} aria-hidden="true"/></button><output aria-live="polite">Balloon {String(selected + 1).padStart(2,'0')} <span>of {count}</span></output><button aria-label="Next balloon" onClick={() => scene.current?.select(selected + 1)}><ArrowRight size={18} aria-hidden="true"/></button><button onClick={() => scene.current?.lift()}><ArrowUp size={17} aria-hidden="true"/>Give a lift</button><button disabled={!paused} onClick={() => scene.current?.step()}><StepForward size={17} aria-hidden="true"/>One step</button></div></div><div className="physics-note"><p className="eyebrow">WHAT’S REALLY HAPPENING</p><h2>Two shapes. Three connections.</h2><p>Each balloon is a circle and a triangular knot, tied together by three constraints. Reduced gravity, air resistance and bouncy collisions shape the motion. It’s tuned rigid-body physics, rather than a buoyancy model.</p></div></section>
+      </main><footer><p>A small study in motion, by Sammii.</p><a href="https://labs.sammii.dev">More things to play with<ArrowUpRight size={15} aria-hidden="true"/></a></footer>
     </div>
-  );
-};
-
-export default BalloonPop;
+  </div>;
+}
